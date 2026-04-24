@@ -223,6 +223,8 @@ Resources:
       DBInstanceIdentifier: aws-study-rds
       Engine: mysql
       EngineVersion: 8.4.4
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
       DBInstanceClass: db.t3.micro
       AllocatedStorage: '20'
       StorageType: gp2
@@ -243,7 +245,6 @@ Resources:
         - general
         - slowquery
       DeletionProtection: false
-      AutoMinorVersionUpgrade: true
       Tags:
         - Key: Name
           Value: aws-study-rds
