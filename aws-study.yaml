@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: create ec2
+Description: aws-study template
 
 Resources:
   AWSStudyVpc:
@@ -10,14 +10,14 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: AWS-Study-VPC
+          Value: aws-study-vpc
 
   AWSStudyInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: AWS-Study-IGW
+          Value: aws-study-igw
 
   AWSStudyVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -34,7 +34,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: AWS-Study-Public-Subnet-1a
+          Value: aws-study-subnet-1a
 
   AWSStudyPublicSubnetAz2:
     Type: AWS::EC2::Subnet
@@ -45,7 +45,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: AWS-Study-Public-Subnet-1c
+          Value: aws-study-public-subnet-1c
 
   AWSStudyPrivateSubnetAz1:
     Type: AWS::EC2::Subnet
@@ -56,7 +56,7 @@ Resources:
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: AWS-Study-Private-Subnet-1a
+          Value: aws-study-private-subnet-1a
 
   AWSStudyPrivateSubnetAz2:
     Type: AWS::EC2::Subnet
@@ -67,7 +67,7 @@ Resources:
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: AWS-Study-Private-Subnet-1c
+          Value: aws-study-private-subnet-1c
 
   AWSStudyPublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -75,7 +75,7 @@ Resources:
       VpcId: !Ref AWSStudyVpc
       Tags:
         - Key: Name
-          Value: AWS-Study-Public-RouteTable
+          Value: aws-study-public-route
 
   AWSStudyPublicDefaultRoute:
     Type: AWS::EC2::Route
@@ -103,7 +103,7 @@ Resources:
       VpcId: !Ref AWSStudyVpc
       Tags:
         - Key: Name
-          Value: AWS-Study-Private-RouteTable-1a
+          Value: aws-study-private-route-1a
 
   AWSStudyPrivateRouteTableAz2:
     Type: AWS::EC2::RouteTable
@@ -111,7 +111,7 @@ Resources:
       VpcId: !Ref AWSStudyVpc
       Tags:
         - Key: Name
-          Value: AWS-Study-Private-RouteTable-1c
+          Value: aws-study-private-route-1c
 
   AWSStudyPrivateSubnetAz1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -145,7 +145,7 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: AWS-Study-EC2-SG
+          Value: aws-study-ec2-sg
 
   AWSStudyRdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -163,9 +163,9 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: AWS-Study-RDS-SG
+          Value: aws-study-rds-sg
 
-  AWSStudyEC2Instance:
+  AWSStudyEc2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
@@ -176,7 +176,7 @@ Resources:
       KeyName: saway
       Tags:
         - Key: Name
-          Value: AWS-Study-EC2
+          Value: aws-study-ec2
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -215,7 +215,7 @@ Resources:
         - !Ref AWSStudyPrivateSubnetAz2
       Tags:
         - Key: Name
-          Value: AWS-Study-DB-SubnetGroup
+          Value: aws-study-db-subnet-group
 
   AWSStudyRdsInstance:
     Type: AWS::RDS::DBInstance
@@ -246,7 +246,7 @@ Resources:
       AutoMinorVersionUpgrade: true
       Tags:
         - Key: Name
-          Value: AWS-Study-RDS
+          Value: aws-study-rds
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -265,4 +265,49 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
       Tags:
         - Key: Name
-          Value: AWS-Study-RDS-Monitoring-Role
+          Value: aws-study-rds-monitoring-role
+
+  AWSStudyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: aws-study-tg
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref AWSStudyVpc
+      TargetType: instance
+      Targets:
+        - Id: !Ref AWSStudyEc2Instance
+          Port: 8080
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      HealthCheckPath: /
+      Matcher:
+        HttpCode: 200-404
+      Tags:
+        - Key: Name
+          Value: aws-study-tg
+
+  AWSStudyApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: aws-study-alb
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - !Ref AWSStudyEc2SecurityGroup
+      Subnets:
+        - !Ref AWSStudyPublicSubnetAz1
+        - !Ref AWSStudyPublicSubnetAz2
+      Tags:
+        - Key: Name
+          Value: aws-study-alb
+
+  AWSStudyAlbListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref AWSStudyApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AWSStudyTargetGroup
