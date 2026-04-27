@@ -25,7 +25,7 @@ Resources:
       VpcId: !Ref AWSStudyVpc
       InternetGatewayId: !Ref AWSStudyInternetGateway
 
-  AWSStudyPublicSubnetAz1:
+  AWSStudyPublicSubnetAz1a:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -34,9 +34,9 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: aws-study-subnet-1a
+          Value: aws-study-public-subnet-1a
 
-  AWSStudyPublicSubnetAz2:
+  AWSStudyPublicSubnetAz1c:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -47,7 +47,7 @@ Resources:
         - Key: Name
           Value: aws-study-public-subnet-1c
 
-  AWSStudyPrivateSubnetAz1:
+  AWSStudyPrivateSubnetAz1a:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -58,7 +58,7 @@ Resources:
         - Key: Name
           Value: aws-study-private-subnet-1a
 
-  AWSStudyPrivateSubnetAz2:
+  AWSStudyPrivateSubnetAz1c:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -85,19 +85,19 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref AWSStudyInternetGateway
 
-  AWSStudyPublicSubnetAz1RouteTableAssociation:
+  AWSStudyPublicSubnetAz1aRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref AWSStudyPublicSubnetAz1
+      SubnetId: !Ref AWSStudyPublicSubnetAz1a
       RouteTableId: !Ref AWSStudyPublicRouteTable
 
-  AWSStudyPublicSubnetAz2RouteTableAssociation:
+  AWSStudyPublicSubnetAz1cRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref AWSStudyPublicSubnetAz2
+      SubnetId: !Ref AWSStudyPublicSubnetAz1c
       RouteTableId: !Ref AWSStudyPublicRouteTable
 
-  AWSStudyPrivateRouteTableAz1:
+  AWSStudyPrivateRouteTableAz1a:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -105,7 +105,7 @@ Resources:
         - Key: Name
           Value: aws-study-private-route-1a
 
-  AWSStudyPrivateRouteTableAz2:
+  AWSStudyPrivateRouteTableAz1c:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref AWSStudyVpc
@@ -113,17 +113,17 @@ Resources:
         - Key: Name
           Value: aws-study-private-route-1c
 
-  AWSStudyPrivateSubnetAz1RouteTableAssociation:
+  AWSStudyPrivateSubnetAz1aRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref AWSStudyPrivateSubnetAz1
-      RouteTableId: !Ref AWSStudyPrivateRouteTableAz1
+      SubnetId: !Ref AWSStudyPrivateSubnetAz1a
+      RouteTableId: !Ref AWSStudyPrivateRouteTableAz1a
 
-  AWSStudyPrivateSubnetAz2RouteTableAssociation:
+  AWSStudyPrivateSubnetAz1cRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref AWSStudyPrivateSubnetAz2
-      RouteTableId: !Ref AWSStudyPrivateRouteTableAz2
+      SubnetId: !Ref AWSStudyPrivateSubnetAz1c
+      RouteTableId: !Ref AWSStudyPrivateRouteTableAz1c
 
   AWSStudyEc2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -173,7 +173,7 @@ Resources:
     Properties:
       InstanceType: t3.micro
       ImageId: ami-0599b6e53ca798bb2
-      SubnetId: !Ref AWSStudyPublicSubnetAz1
+      SubnetId: !Ref AWSStudyPublicSubnetAz1a
       SecurityGroupIds:
         - !Ref AWSStudyEc2SecurityGroup
       KeyName: saway
@@ -214,8 +214,8 @@ Resources:
       DBSubnetGroupDescription: DB subnet group for AWS-Study RDS
       DBSubnetGroupName: aws-study-db-subnet-group
       SubnetIds:
-        - !Ref AWSStudyPrivateSubnetAz1
-        - !Ref AWSStudyPrivateSubnetAz2
+        - !Ref AWSStudyPrivateSubnetAz1a
+        - !Ref AWSStudyPrivateSubnetAz1c
       Tags:
         - Key: Name
           Value: aws-study-db-subnet-group
@@ -300,8 +300,8 @@ Resources:
       SecurityGroups:
         - !Ref AWSStudyEc2SecurityGroup
       Subnets:
-        - !Ref AWSStudyPublicSubnetAz1
-        - !Ref AWSStudyPublicSubnetAz2
+        - !Ref AWSStudyPublicSubnetAz1a
+        - !Ref AWSStudyPublicSubnetAz1c
       Tags:
         - Key: Name
           Value: aws-study-alb
