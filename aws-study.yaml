@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: aws-study template
 
 Resources:
+  # VPC
   AWSStudyVpc:
     Type: AWS::EC2::VPC
     Properties:
@@ -12,6 +13,7 @@ Resources:
         - Key: Name
           Value: aws-study-vpc
 
+  # インターネットゲートウェイ(IGW)
   AWSStudyInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -19,12 +21,14 @@ Resources:
         - Key: Name
           Value: aws-study-igw
 
+  # IGWをVPCに関連付ける
   AWSStudyVpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref AWSStudyVpc
       InternetGatewayId: !Ref AWSStudyInternetGateway
 
+  # ----- サブネットの作成(AZ1a,AZ1cにパブリックとプライベートを1つずつ) ここから -----
   AWSStudyPublicSubnetAz1a:
     Type: AWS::EC2::Subnet
     Properties:
@@ -68,7 +72,9 @@ Resources:
       Tags:
         - Key: Name
           Value: aws-study-private-subnet-1c
+  # ----- サブネットの作成 ここまで -----
 
+  # パブリックサブネット用のルートテーブル
   AWSStudyPublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -77,6 +83,7 @@ Resources:
         - Key: Name
           Value: aws-study-public-route
 
+  # インターネットへのデフォルトルート (すべての外向き通信をIGWへ)
   AWSStudyPublicDefaultRoute:
     Type: AWS::EC2::Route
     DependsOn: AWSStudyVpcGatewayAttachment
@@ -85,6 +92,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref AWSStudyInternetGateway
 
+  # ---- パブリックサブネットをパブリックルートテーブルに関連付ける ここから -----
   AWSStudyPublicSubnetAz1aRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -96,7 +104,9 @@ Resources:
     Properties:
       SubnetId: !Ref AWSStudyPublicSubnetAz1c
       RouteTableId: !Ref AWSStudyPublicRouteTable
+  # ---- パブリックサブネットをパブリックルートテーブルに関連付ける ここまで -----
 
+  # ----- プライベートサブネット用の外部へのルートを持たないルートテーブル ここから -----
   AWSStudyPrivateRouteTableAz1a:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -112,7 +122,9 @@ Resources:
       Tags:
         - Key: Name
           Value: aws-study-private-route-1c
+  # ----- プライベートサブネット用のルートテーブル ここまで -----
 
+  # ----- プライベートサブネットをプライベートルートテーブルに関連付ける ここから -----
   AWSStudyPrivateSubnetAz1aRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -124,7 +136,10 @@ Resources:
     Properties:
       SubnetId: !Ref AWSStudyPrivateSubnetAz1c
       RouteTableId: !Ref AWSStudyPrivateRouteTableAz1c
+  # ----- プライベートサブネットをプライベートルートテーブルに関連付ける ここまで -----
 
+
+  # SG
   AWSStudyEc2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -168,6 +183,7 @@ Resources:
         - Key: Name
           Value: aws-study-rds-sg
 
+  # EC2
   AWSStudyEc2Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -208,6 +224,7 @@ Resources:
             mybatis.mapper-locations=classpath*:/mapper/*.xml
           EOF
     
+  # DBサブネットグループ
   AWSStudyDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -220,6 +237,7 @@ Resources:
         - Key: Name
           Value: aws-study-db-subnet-group
 
+  # RDS
   AWSStudyRdsInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -254,6 +272,7 @@ Resources:
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
+  # RDSモニタリング用 IAMロール
   AWSStudyRdsMonitoringRole:
     Type: AWS::IAM::Role
     Properties:
@@ -271,6 +290,7 @@ Resources:
         - Key: Name
           Value: aws-study-rds-monitoring-role
 
+  # TG
   AWSStudyTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -291,6 +311,7 @@ Resources:
         - Key: Name
           Value: aws-study-tg
 
+  # ALB
   AWSStudyApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -306,6 +327,7 @@ Resources:
         - Key: Name
           Value: aws-study-alb
 
+  # ALBリスナー
   AWSStudyAlbListenerHttp:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
