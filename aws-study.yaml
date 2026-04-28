@@ -255,6 +255,7 @@ Resources:
       VPCSecurityGroups:
         - !Ref AWSStudyRdsSecurityGroup
       DBSubnetGroupName: !Ref AWSStudyDbSubnetGroup
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
       PubliclyAccessible: false
       MultiAZ: false
       BackupRetentionPeriod: 0
