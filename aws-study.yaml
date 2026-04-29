@@ -147,17 +147,13 @@ Resources:
       VpcId: !Ref AWSStudyVpc
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref AWSStudyAlbSecurityGroup
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -182,6 +178,24 @@ Resources:
       Tags:
         - Key: Name
           Value: aws-study-rds-sg
+  
+  AWSStudyAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AWS-Study ALB
+      GroupName: AWS-Study-ALB-SG
+      VpcId: !Ref AWSStudyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: aws-study-alb-sg
 
   # EC2
   AWSStudyEc2Instance:
@@ -320,7 +334,7 @@ Resources:
       Scheme: internet-facing
       Type: application
       SecurityGroups:
-        - !Ref AWSStudyEc2SecurityGroup
+        - !Ref AWSStudyAlbSecurityGroup
       Subnets:
         - !Ref AWSStudyPublicSubnetAz1a
         - !Ref AWSStudyPublicSubnetAz1c
