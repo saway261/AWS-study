@@ -314,13 +314,12 @@ Resources:
   AWSStudyTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       VpcId: !Ref AWSStudyVpc
       TargetType: instance
       Targets:
         - Id: !Ref AWSStudyEc2Instance
-          Port: 8080
       Matcher:
         HttpCode: 200-404
       Tags:
