@@ -314,7 +314,6 @@ Resources:
   AWSStudyTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: aws-study-tg
       Port: 80
       Protocol: HTTP
       VpcId: !Ref AWSStudyVpc
@@ -322,9 +321,6 @@ Resources:
       Targets:
         - Id: !Ref AWSStudyEc2Instance
           Port: 8080
-      HealthCheckProtocol: HTTP
-      HealthCheckPort: traffic-port
-      HealthCheckPath: /
       Matcher:
         HttpCode: 200-404
       Tags:
