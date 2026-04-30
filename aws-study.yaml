@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: aws-study template
 
+Parameters:
+  MyIp:
+    Type: String
+    Description: Your IP address for SSH
+
 Resources:
   # VPC
   AWSStudyVpc:
@@ -149,7 +154,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Sub "${MyIp}/32"
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
