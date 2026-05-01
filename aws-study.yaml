@@ -1,0 +1,354 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: aws-study template
+
+Parameters:
+  MyIp:
+    Type: String
+    Description: Your IP address for SSH
+
+Resources:
+  # VPC
+  AWSStudyVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: aws-study-vpc
+
+  # インターネットゲートウェイ(IGW)
+  AWSStudyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: aws-study-igw
+
+  # IGWをVPCに関連付ける
+  AWSStudyVpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      InternetGatewayId: !Ref AWSStudyInternetGateway
+
+  # ----- サブネットの作成(AZ1a,AZ1cにパブリックとプライベートを1つずつ) ここから -----
+  AWSStudyPublicSubnetAz1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-study-public-subnet-1a
+
+  AWSStudyPublicSubnetAz1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-study-public-subnet-1c
+
+  AWSStudyPrivateSubnetAz1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: 10.0.10.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: aws-study-private-subnet-1a
+
+  AWSStudyPrivateSubnetAz1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: 10.0.11.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: aws-study-private-subnet-1c
+  # ----- サブネットの作成 ここまで -----
+
+  # パブリックサブネット用のルートテーブル
+  AWSStudyPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      Tags:
+        - Key: Name
+          Value: aws-study-public-route
+
+  # インターネットへのデフォルトルート (すべての外向き通信をIGWへ)
+  AWSStudyPublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AWSStudyVpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref AWSStudyPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref AWSStudyInternetGateway
+
+  # ---- パブリックサブネットをパブリックルートテーブルに関連付ける ここから -----
+  AWSStudyPublicSubnetAz1aRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AWSStudyPublicSubnetAz1a
+      RouteTableId: !Ref AWSStudyPublicRouteTable
+
+  AWSStudyPublicSubnetAz1cRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AWSStudyPublicSubnetAz1c
+      RouteTableId: !Ref AWSStudyPublicRouteTable
+  # ---- パブリックサブネットをパブリックルートテーブルに関連付ける ここまで -----
+
+  # ----- プライベートサブネット用の外部へのルートを持たないルートテーブル ここから -----
+  AWSStudyPrivateRouteTableAz1a:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      Tags:
+        - Key: Name
+          Value: aws-study-private-route-1a
+
+  AWSStudyPrivateRouteTableAz1c:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AWSStudyVpc
+      Tags:
+        - Key: Name
+          Value: aws-study-private-route-1c
+  # ----- プライベートサブネット用のルートテーブル ここまで -----
+
+  # ----- プライベートサブネットをプライベートルートテーブルに関連付ける ここから -----
+  AWSStudyPrivateSubnetAz1aRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AWSStudyPrivateSubnetAz1a
+      RouteTableId: !Ref AWSStudyPrivateRouteTableAz1a
+
+  AWSStudyPrivateSubnetAz1cRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AWSStudyPrivateSubnetAz1c
+      RouteTableId: !Ref AWSStudyPrivateRouteTableAz1c
+  # ----- プライベートサブネットをプライベートルートテーブルに関連付ける ここまで -----
+
+
+  # SG
+  AWSStudyEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH access
+      VpcId: !Ref AWSStudyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Sub "${MyIp}/32"
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref AWSStudyAlbSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: aws-study-ec2-sg
+
+  AWSStudyRdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AWS-Study RDS
+      GroupName: AWS-Study-RDS-SG
+      VpcId: !Ref AWSStudyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref AWSStudyEc2SecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: aws-study-rds-sg
+  
+  AWSStudyAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AWS-Study ALB
+      GroupName: AWS-Study-ALB-SG
+      VpcId: !Ref AWSStudyVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: aws-study-alb-sg
+
+  # EC2
+  AWSStudyEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0599b6e53ca798bb2
+      SubnetId: !Ref AWSStudyPublicSubnetAz1a
+      SecurityGroupIds:
+        - !Ref AWSStudyEc2SecurityGroup
+      KeyName: saway
+      Tags:
+        - Key: Name
+          Value: aws-study-ec2
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install -y git
+          dnf install -y java-21-amazon-corretto-devel
+          dnf -y localinstall https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
+          dnf -y install mysql-community-client
+
+          cd /home/ec2-user
+          git clone https://github.com/koujienami/aws-study
+          chown -R ec2-user:ec2-user /home/ec2-user/aws-study
+          chmod +x /home/ec2-user/aws-study/gradlew
+
+          mysql -h "${AWSStudyRdsInstance.Endpoint.Address}" -u root -paiueo123#$% awsstudy \
+            < /home/ec2-user/aws-study/src/main/resources/create.sql
+
+          cat > /home/ec2-user/aws-study/src/main/resources/application.properties << EOF
+            spring.application.name=demo
+            spring.datasource.url=jdbc:mysql://${AWSStudyRdsInstance.Endpoint.Address}:3306/awsstudy
+            spring.datasource.username=root
+            spring.datasource.password=aiueo123#$%
+            spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+            mybatis.configuration.map-underscore-to-camel-case=true
+            mybatis.mapper-locations=classpath*:/mapper/*.xml
+          EOF
+    
+  # DBサブネットグループ
+  AWSStudyDbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DB subnet group for AWS-Study RDS
+      DBSubnetGroupName: aws-study-db-subnet-group
+      SubnetIds:
+        - !Ref AWSStudyPrivateSubnetAz1a
+        - !Ref AWSStudyPrivateSubnetAz1c
+      Tags:
+        - Key: Name
+          Value: aws-study-db-subnet-group
+
+  # RDS
+  AWSStudyRdsInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: aws-study-rds
+      Engine: mysql
+      EngineVersion: 8.4.4
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: '20'
+      StorageType: gp2
+      MasterUsername: root
+      MasterUserPassword: aiueo123#$%
+      DBName: awsstudy
+      VPCSecurityGroups:
+        - !Ref AWSStudyRdsSecurityGroup
+      DBSubnetGroupName: !Ref AWSStudyDbSubnetGroup
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 0
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt AWSStudyRdsMonitoringRole.Arn
+      EnableCloudwatchLogsExports:
+        - audit
+        - error
+        - general
+        - slowquery
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: aws-study-rds
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # RDSモニタリング用 IAMロール
+  AWSStudyRdsMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWS-Study-RDS-Monitoring-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+      Tags:
+        - Key: Name
+          Value: aws-study-rds-monitoring-role
+
+  # TG
+  AWSStudyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 8080
+      Protocol: HTTP
+      VpcId: !Ref AWSStudyVpc
+      TargetType: instance
+      Targets:
+        - Id: !Ref AWSStudyEc2Instance
+      Matcher:
+        HttpCode: 200-404
+      Tags:
+        - Key: Name
+          Value: aws-study-tg
+
+  # ALB
+  AWSStudyApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: aws-study-alb
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - !Ref AWSStudyAlbSecurityGroup
+      Subnets:
+        - !Ref AWSStudyPublicSubnetAz1a
+        - !Ref AWSStudyPublicSubnetAz1c
+      Tags:
+        - Key: Name
+          Value: aws-study-alb
+
+  # ALBリスナー
+  AWSStudyAlbListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref AWSStudyApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AWSStudyTargetGroup
