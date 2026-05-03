@@ -11,6 +11,16 @@ Parameters:
     Description: RDS master password
     NoEcho: true
 
+Outputs:
+  EC2PublicIp:
+    Description: EC2 instance public IPv4 address
+    Value: !GetAtt AWSStudyEc2Instance.PublicIp
+  
+  ALBDnsName:
+    Description: ALB DNS name
+    Value: !GetAtt AWSStudyApplicationLoadBalancer.DNSName
+
+
 Resources:
   # VPC
   AWSStudyVpc:
