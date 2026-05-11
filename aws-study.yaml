@@ -5,11 +5,6 @@ Parameters:
   MyIp:
     Type: String
     Description: Your IP address for SSH
-  
-  DbPassword:
-    Type: String
-    Description: RDS master password
-    NoEcho: true
 
 Outputs:
   EC2PublicIp:
@@ -217,12 +212,50 @@ Resources:
         - Key: Name
           Value: aws-study-alb-sg
 
+  AWSStudyEC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWS-Study-EC2-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore 
+      Policies:
+        - PolicyName: SecretsManagerReadPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - rds:DescribeDBInstances
+                Resource: !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:aws-study-rds'
+      Tags:
+        - Key: Name
+          Value: aws-study-ec2-role
+
+  AWSStudyEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: AWS-Study-EC2-InstanceProfile
+      Roles:
+        - !Ref AWSStudyEC2Role
+
   # EC2
   AWSStudyEc2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
       ImageId: ami-0599b6e53ca798bb2
+      IamInstanceProfile: !Ref AWSStudyEC2InstanceProfile
       SubnetId: !Ref AWSStudyPublicSubnetAz1a
       SecurityGroupIds:
         - !Ref AWSStudyEc2SecurityGroup
@@ -234,8 +267,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           dnf update -y
-          dnf install -y git
-          dnf install -y java-21-amazon-corretto-devel
+          dnf install -y git jq java-21-amazon-corretto-devel
           dnf -y localinstall https://dev.mysql.com/get/mysql84-community-release-el9-1.noarch.rpm
           dnf -y install mysql-community-client
 
@@ -244,20 +276,55 @@ Resources:
           chown -R ec2-user:ec2-user /home/ec2-user/aws-study
           chmod +x /home/ec2-user/aws-study/gradlew
 
-          mysql -h "${AWSStudyRdsInstance.Endpoint.Address}" -u root -p'${DbPassword}' awsstudy \
+          cd /home/ec2-user/aws-study
+          sudo -u ec2-user ./gradlew bootJar
+
+          mkdir -p /opt/aws-study
+          cp /home/ec2-user/aws-study/build/libs/*.jar /opt/aws-study/app.jar
+          chown -R ec2-user:ec2-user /opt/aws-study
+
+          cd /home/ec2-user/aws-study
+
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "${AWSStudyRdsInstance.MasterUserSecret.SecretArn}" \
+            --region "${AWS::Region}" \
+            --query SecretString \
+            --output text)
+
+          DB_USERNAME=$(echo "$SECRET_JSON" | jq -r '.username')
+          DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+
+          mysql \
+            -h "${AWSStudyRdsInstance.Endpoint.Address}" \
+            -u "$DB_USERNAME" \
+            -p"$DB_PASSWORD" \
+            awsstudy \
             < /home/ec2-user/aws-study/src/main/resources/create.sql
 
-          cat > /home/ec2-user/aws-study/src/main/resources/application.properties << EOF
-            spring.application.name=demo
-            spring.datasource.url=jdbc:mysql://${AWSStudyRdsInstance.Endpoint.Address}:3306/awsstudy
-            spring.datasource.username=root
-            spring.datasource.password=${DbPassword}
-            spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+          cat > /etc/systemd/system/aws-study.service <<EOF
+          [Unit]
+          Description=aws-study
+          After=network-online.target
+          Wants=network-online.target
 
-            mybatis.configuration.map-underscore-to-camel-case=true
-            mybatis.mapper-locations=classpath*:/mapper/*.xml
+          [Service]
+          User=ec2-user
+          WorkingDirectory=/opt/aws-study
+          Restart=always
+          RestartSec=10
+
+          Environment="SPRING_DATASOURCE_URL=jdbc:mysql://${AWSStudyRdsInstance.Endpoint.Address}:3306/awsstudy"
+
+          ExecStart=/bin/bash -c 'SECRET_JSON=\$(aws secretsmanager get-secret-value --secret-id "${AWSStudyRdsInstance.MasterUserSecret.SecretArn}" --region "${AWS::Region}" --query SecretString --output text); DB_USERNAME=\$(echo "\$SECRET_JSON" | jq -r ".username"); DB_PASSWORD=\$(echo "\$SECRET_JSON" | jq -r ".password"); SPRING_DATASOURCE_USERNAME="\$DB_USERNAME" SPRING_DATASOURCE_PASSWORD="\$DB_PASSWORD" /usr/bin/java -jar /opt/aws-study/app.jar'
+
+          [Install]
+          WantedBy=multi-user.target
           EOF
-    
+
+          systemctl daemon-reload
+          systemctl enable aws-study
+          systemctl start aws-study
+
   # DBサブネットグループ
   AWSStudyDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -284,7 +351,7 @@ Resources:
       AllocatedStorage: '20'
       StorageType: gp2
       MasterUsername: root
-      MasterUserPassword: !Ref DbPassword
+      ManageMasterUserPassword: true
       DBName: awsstudy
       VPCSecurityGroups:
         - !Ref AWSStudyRdsSecurityGroup
