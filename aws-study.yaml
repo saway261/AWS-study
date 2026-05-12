@@ -15,6 +15,13 @@ Outputs:
     Description: ALB DNS name
     Value: !GetAtt AWSStudyApplicationLoadBalancer.DNSName
 
+  RDSEndpoint:
+    Description: RDS endpoint address
+    Value: !GetAtt AWSStudyRdsInstance.Endpoint.Address
+
+  RDSPort:
+    Description: RDS endpoint port
+    Value: !GetAtt AWSStudyRdsInstance.Endpoint.Port
 
 Resources:
   # VPC
